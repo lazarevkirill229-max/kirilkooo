@@ -213,11 +213,26 @@ local function watch(c)
  end)
  visuals()
 end
+local effects={}
+local function effectObject(obj)
+ if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+  or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+  if effects[obj]==nil then effects[obj]=obj.Enabled end
+  obj.Enabled=false
+ end
+end
+local function restoreEffects()
+ for obj,value in pairs(effects) do if obj.Parent then obj.Enabled=value end end
+ table.clear(effects)
+end
+on(workspace.DescendantAdded,function(obj)
+ if s.LowEffects then effectObject(obj) end
+end)
 local function cleanup()
  if not live then return end; live=false
  for _,c in ipairs(cons) do c:Disconnect() end
  if cc then cc:Disconnect() end
- stopFly(); stopEmote(); clearESP(); restoreCollision(); restoreMove(); restoreVisual()
+ stopFly(); stopEmote(); clearESP(); restoreCollision(); restoreMove(); restoreVisual(); restoreEffects()
  p.CameraMaxZoomDistance=oldZoom
  for c,v in pairs(cameras) do if c.Parent then c.FieldOfView=v end end
  for k,v in pairs(lighting) do L[k]=v end
@@ -256,6 +271,21 @@ local fb=button("FOV: исходный",function(b)
 end)
 button("Сбросить FOV",function() fov=nil; camera(); fb.Text="FOV: исходный" end)
 toggle("Прицел","Crosshair",function() cross.Visible=s.Crosshair end)
+toggle("Радужный прицел","Rainbow",function()
+ if not s.Rainbow then cross.BackgroundColor3=Color3.fromRGB(100,255,150) end
+end)
+toggle("Отключить частицы и следы","LowEffects",function()
+ if s.LowEffects then
+  for _,obj in ipairs(workspace:GetDescendants()) do effectObject(obj) end
+ else restoreEffects() end
+end)
+local times={14,18,0,7}; local timeNames={"День","Вечер","Ночь","Утро"}; local ti=0
+local timeButton=button("Время: исходное",function(b)
+ ti=ti%#times+1; L.ClockTime=times[ti]; b.Text="Время: "..timeNames[ti]
+end)
+button("Сбросить время",function()
+ L.ClockTime=lighting.ClockTime; timeButton.Text="Время: исходное"
+end)
 toggle("Прозрачный персонаж","Ghost",visuals)
 toggle("Скрыть аксессуары","Accessories",visuals)
 toggle("Визуальный Headless","Headless",visuals)
@@ -267,9 +297,20 @@ end
 button("Остановить эмоцию",stopEmote)
 
 group="Меню"
+toggle("Показать FPS","ShowFPS")
+toggle("Показать координаты","Coordinates")
+local info=Instance.new("TextLabel")
+info.LayoutOrder=999; info.Size=UDim2.new(1,-8,0,56)
+info.BackgroundTransparency=1; info.TextColor3=Color3.fromRGB(175,210,190)
+info.TextSize=12; info.Font=Enum.Font.Code; info.TextWrapped=true
+info.Visible=false; info.Parent=list
+buttons[info]="Меню"
 button("Сбросить эффекты",function()
  for key in pairs(s) do s[key]=false end
  stopFly(); stopEmote(); clearESP(); restoreCollision(); restoreMove(); restoreVisual()
+ restoreEffects()
+ cross.BackgroundColor3=Color3.fromRGB(100,255,150)
+ timeButton.Text="Время: исходное"
  cross.Visible=false; p.CameraMaxZoomDistance=oldZoom
  fov=nil; camera(); fb.Text="FOV: исходный"
  for k,v in pairs(lighting) do L[k]=v end
@@ -296,8 +337,13 @@ on(R.Stepped,function()
  end
 end)
 local elapsed=0
+local frames,frameTime=0,0
+local fps=0
 on(R.Heartbeat,function(dt)
  local _,h,root=char()
+ frames+=1; frameTime+=dt
+ if frameTime>=.5 then fps=math.floor(frames/frameTime+.5); frames=0; frameTime=0 end
+ if s.Rainbow then cross.BackgroundColor3=Color3.fromHSV((os.clock()*.15)%1,1,1) end
  if h and h.Health>0 then
   if not move[h] then move[h]={h.WalkSpeed,h.JumpPower,h.JumpHeight} end
   h.WalkSpeed=s.Speed and speedValue or move[h][1]
@@ -324,7 +370,16 @@ on(R.Heartbeat,function(dt)
   av.VectorVelocity=d.Magnitude>0 and d.Unit*flightValue or Vector3.zero
  else stopFly() end
  elapsed+=dt
- if elapsed>=.25 then elapsed=0; updateESP() end
+ if elapsed>=.25 then
+  elapsed=0; updateESP()
+  local lines={}
+  if s.ShowFPS then table.insert(lines,"FPS: "..fps) end
+  if s.Coordinates and root then
+   local pos=root.Position
+   table.insert(lines,string.format("X: %.1f  Y: %.1f  Z: %.1f",pos.X,pos.Y,pos.Z))
+  end
+  info.Text=#lines>0 and table.concat(lines," | ") or "Включи FPS или координаты"
+ end
 end)
 if p.Character then watch(p.Character) end
 end
