@@ -18,7 +18,7 @@ end
 
 -- Both menus load independently; one error does not block the other.
 task.spawn(function()
-    run("https://raw.githubusercontent.com/lazarevkirill229-max/kirilkooo/d22bbbd57820977908d9d0b3e70268505bb03f6f/mm2.lua", "Personal-MM2")
+    run("https://raw.githubusercontent.com/lazarevkirill229-max/kirilkooo/78c3ac364888075681e8fb4418d47486694e2e03/mm2.lua", "Personal-MM2")
 end)
 
 -- Avoid starting a second instance on repeated execution in this session.
